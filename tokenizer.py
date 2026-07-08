@@ -78,8 +78,10 @@ class Tokenizer:
         return text_enc
 
 
-    def decode(self, token):
-        raise NotImplementedError
+    def decode(self, tok_seq):
+        decoded = [self.vocab[tok].decode('utf-8') for tok in tok_seq]
+        decoded = ''.join(decoded)
+        return decoded
 
     # Recieves the byte representation of the text, returns the most occurrent pair?
     # CHECK: what if equality?    
@@ -142,4 +144,9 @@ print('*******')
 print('*******')
 # pprint(tokenizer.merges) 
 print('\n\n')
-print(tokenizer.encode(test_text))
+text_enc = tokenizer.encode(test_text)
+print(text_enc)
+print('\n\n')
+text_dec = tokenizer.decode(text_enc)
+print(text_dec)
+print(text_dec == test_text)
