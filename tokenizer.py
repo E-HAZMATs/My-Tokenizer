@@ -18,6 +18,7 @@ TODO: Export vocab and merges?
 '''
 from os import path
 from pprint import pprint
+import json
 class Tokenizer:
     
     def __init__(self):
@@ -118,18 +119,23 @@ class Tokenizer:
 
         return data_updated
 
-    def save():
+    def save(self):
+        voc = self.vocab.copy()
+        # BPE works on byte rep of the text, so it could pair 2 bytes that correspond to nothing in UTF-8 and can't be decoded.
+        # Use errors=replace stops it from throwing and replaces rubbish byte pairs with some symbol.
+        voc = {k: v.decode('utf-8', errors='replace') for k, v in voc.items()}
+        with open('checkpoints/vocab.json', 'w') as f:
+            json.dump(self.vocab, f, indent=4)
         
-        raise NotImplementedError
 # -------
 # CONFIGS / ARGS
 max_vocab = 280
 data_path = 'data'
 data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
 
-# test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
+test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
 
-test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
+# test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
 # -------
 
 
@@ -153,3 +159,5 @@ print('\n\n')
 text_dec = tokenizer.decode(text_enc)
 print(text_dec)
 print(text_dec == test_text)
+
+tokenizer.save()
