@@ -41,7 +41,6 @@ class Tokenizer:
         assert max_vocab > 255, "can't have max_vocab less than length of base vocab." # should be 256?
         pairing_iter = max_vocab - 256 # could be 0... I guess that's fine
         data_enc = dataset.encode('utf-8')
-
         
         for i in range(pairing_iter):
             new_id = i + 256 # base is 0-255. So 1st next token in vocab is 256.
@@ -60,9 +59,9 @@ class Tokenizer:
         '''
         How?
         maybe encode to utf8 > iteratively apply similar logic to `merge`?
-        
-        
         '''
+        assert True # Add assertion that checks if tokenizer is trained? if not trained it will just return utf8 no?
+
         raise NotImplementedError
 
     def decode(self, token):
@@ -87,7 +86,7 @@ class Tokenizer:
         data_updated = []
 
         # CHECK THIS. Key is the merge pair, value is their bytes concated.
-        self.merges[pair] = self.vocab[pair[0]] + self.vocab[pair[1]]
+        self.merges[pair] = self.vocab[pair[0]] + self.vocab[pair[1]] # FIXME?: Assigned value is wrong? both vocab and merges have those byte vals. Nothing connects the 2 dicts. Should be the ID?
         i = 0
         while i < len(data_enc):
             
@@ -104,7 +103,7 @@ class Tokenizer:
 
 # -------
 # CONFIGS / ARGS
-max_vocab = 400
+max_vocab = 300
 # -------
 
 
