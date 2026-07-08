@@ -79,8 +79,8 @@ class Tokenizer:
 
 
     def decode(self, tok_seq):
-        decoded = [self.vocab[tok].decode('utf-8') for tok in tok_seq]
-        decoded = ''.join(decoded)
+        # Must concatenate byte sequence cus 1 char could 1-4 bytes. 
+        decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
         return decoded
 
     # Recieves the byte representation of the text, returns the most occurrent pair?
@@ -123,15 +123,18 @@ class Tokenizer:
         raise NotImplementedError
 # -------
 # CONFIGS / ARGS
-max_vocab = 300
+max_vocab = 280
 data_path = 'data'
-data_set = 'taylorswift.txt'
-test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
+data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
+
+# test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
+
+test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
 # -------
 
 
 
-with open(path.join(data_path, data_set)) as f:
+with open(path.join(data_path, data_set[1]), encoding='utf-8') as f:
     data = f.read()
 
 tokenizer = Tokenizer()
@@ -145,7 +148,7 @@ print('*******')
 # pprint(tokenizer.merges) 
 print('\n\n')
 text_enc = tokenizer.encode(test_text)
-print(text_enc)
+print(len(text_enc))
 print('\n\n')
 text_dec = tokenizer.decode(text_enc)
 print(text_dec)
