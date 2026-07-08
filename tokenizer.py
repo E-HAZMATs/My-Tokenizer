@@ -7,17 +7,17 @@ Tokenizer also handles encoding and decoding.
 
 '''
 encode text -> add vocab _ replace encoded text by finding toeknized merges and replacing that with new token > repeat
-
-- confused about vocab, I guess it should be a dict. Key = byte or byte pair (but key as byte pair would get so long tho? say one token is the result of merge 10 times, ti's key will be huge?)
 '''
 
 '''
 GENERAL TODOS:
 TODO: Handle equality of freq occurrence? maybe no need, since the other pair will get selected next iter?
-TODO: Try on Arabic dataset. Drop taylor swify txt.
+TODO: Try on Arabic dataset. Drop taylor swift txt.
 TODO: Serialize the tokenizer?
 TODO: Export vocab and merges?
 '''
+from os import path
+from pprint import pprint
 class Tokenizer:
     
     def __init__(self):
@@ -37,8 +37,7 @@ class Tokenizer:
     def train(self, dataset, max_vocab):
         # WORKFLOW: ENCODED DATA > FIND POPULAR PAIR > ADD NEW TOKEN > UPDATE DATASET, REPLACING PAIRS WITH NEW TOKEN > REPEAT TILL STOP POINT. 
         chars = sorted(list(set(dataset)))
-        # assert len(chars) < max_vocab, "Dataset has more base tokens than `max_vocab`"
-        assert max_vocab > 255, "can't have max_vocab less than length of base vocab." # should be 256?
+        assert max_vocab > 255, "can't have max_vocab less than length of base vocab."
         pairing_iter = max_vocab - 256 # could be 0... I guess that's fine
         data_enc = dataset.encode('utf-8')
         
@@ -46,23 +45,38 @@ class Tokenizer:
             new_id = i + 256 # base is 0-255. So 1st next token in vocab is 256.
 
             # constructing a list of the keys alone.
-            # freq_list = list(self._occur_freq(data_enc)) # There is a better way with `max` (no list construction). forgot how tho.
             freq_list = list(self._occur_freq(data_enc)) # There is a better way with `max` (no list construction). forgot how tho.
-            top_pair_key = freq_list[0]
-            data_enc = self.merge(data_enc, new_id, top_pair_key)
-            self.vocab[new_id] = self.merges[top_pair_key] # Value already set by the `merge` method.
+            top_pair = freq_list[0]
+            data_enc = self.merge(data_enc, new_id, top_pair)
+            self.vocab[new_id] = self.vocab[top_pair[0]] + self.vocab[top_pair[1]]
 
         
         print('*** FINISHED BUILDING VOCAB ***')
 
     def encode(self, text):
-        '''
-        How?
-        maybe encode to utf8 > iteratively apply similar logic to `merge`?
-        '''
         assert True # Add assertion that checks if tokenizer is trained? if not trained it will just return utf8 no?
+        text_enc = text.encode('utf-8')
+        # In case text is just 1 char, no merging needed.
+        i = 0
+        while len(text_enc) > 1:
 
-        raise NotImplementedError
+            freqs = self._occur_freq(text_enc)
+            '''
+            iterates over `freqs` keys > if the key is in `merges` we get that value, else we get infinity > we compare the values and find min in which it's the first merge for the given pair.
+            `inf` = not in `merges`.
+            '''
+            pair = min(freqs, key= lambda pair: self.merges.get(pair, float('inf')))
+
+            # Should be true only after getting the final merge done in training.
+            if pair not in self.merges:
+                break 
+            i += 1
+            if i == 40:
+                break
+            new_token = self.merges[pair]
+            text_enc = self.merge(text_enc, new_token, pair, encoding=True)
+        return text_enc
+
 
     def decode(self, token):
         raise NotImplementedError
@@ -82,14 +96,15 @@ class Tokenizer:
         return freqs_sorted
 
     # "Edits" the training data to use new token, update `merges` dict.
-    def merge(self, data_enc, new_id, pair):
+    def merge(self, data_enc, new_id, pair, encoding=False):
         data_updated = []
 
-        # CHECK THIS. Key is the merge pair, value is their bytes concated.
-        self.merges[pair] = self.vocab[pair[0]] + self.vocab[pair[1]] # FIXME?: Assigned value is wrong? both vocab and merges have those byte vals. Nothing connects the 2 dicts. Should be the ID?
+        # When encoding don't update `merges` dict. Better to outsource this op tho.
+        if not encoding:
+            self.merges[pair] = new_id # Connects this dict with `vocab`. Value could [new_id, new byte(s)] instead?
+
         i = 0
         while i < len(data_enc):
-            
             # 2nd cond handles if last token is same as pair[0], i+1 would go out of bound and throw.
             # can't keep it outside cus if last 2 tokens are of `pair` then i would increment by 2 and go out of bound.
             if data_enc[i] == pair[0] and i < len(data_enc)-1 and data_enc[i+1] == pair[1]:
@@ -101,21 +116,30 @@ class Tokenizer:
 
         return data_updated
 
+    def save():
+        
+        raise NotImplementedError
 # -------
 # CONFIGS / ARGS
 max_vocab = 300
+data_path = 'data'
+data_set = 'taylorswift.txt'
+test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
 # -------
 
 
-with open('taylorswift.txt') as f:
+
+with open(path.join(data_path, data_set)) as f:
     data = f.read()
 
 tokenizer = Tokenizer()
 
 tokenizer.train(data, max_vocab)
 
-from pprint import pprint
+
 pprint(tokenizer.vocab)
 print('*******')
 print('*******')
-pprint(tokenizer.merges) 
+# pprint(tokenizer.merges) 
+print('\n\n')
+print(tokenizer.encode(test_text))
