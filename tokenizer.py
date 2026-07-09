@@ -15,6 +15,7 @@ TODO: Handle equality of freq occurrence? maybe no need, since the other pair wi
 TODO: Try on Arabic dataset. Drop taylor swift txt.
 TODO: Serialize the tokenizer?
 TODO: Export vocab and merges?
+TODO?: Apply regex supported tokenizer? (dog. dog? dog! issue in openai paper).
 '''
 from os import path
 from pprint import pprint
@@ -120,12 +121,16 @@ class Tokenizer:
         return data_updated
 
     def save(self):
-        voc = self.vocab.copy()
         # BPE works on byte rep of the text, so it could pair 2 bytes that correspond to nothing in UTF-8 and can't be decoded.
         # Use errors=replace stops it from throwing and replaces rubbish byte pairs with some symbol.
-        voc = {k: v.decode('utf-8', errors='replace') for k, v in voc.items()}
+        voc = {k: v.decode('utf-8', errors='replace') for k, v in self.vocab.items()}
         with open('checkpoints/vocab.json', 'w') as f:
-            json.dump(self.vocab, f, indent=4)
+            json.dump(voc, f, indent=4) # bytes 128-255 don't have decodable values in utf-8. File can't be used for loading.
+
+        mers = {str(pair): token for pair, token in self.merges.items()}
+        print({type(v) for v in mers.keys()})
+        with open('checkpoints/merges.json', 'w') as f:
+            json.dump(mers, f, indent=4)
         
 # -------
 # CONFIGS / ARGS
@@ -147,17 +152,17 @@ tokenizer = Tokenizer()
 
 tokenizer.train(data, max_vocab)
 
-
-pprint(tokenizer.vocab)
-print('*******')
-print('*******')
-# pprint(tokenizer.merges) 
-print('\n\n')
 text_enc = tokenizer.encode(test_text)
-print(len(text_enc))
-print('\n\n')
 text_dec = tokenizer.decode(text_enc)
-print(text_dec)
-print(text_dec == test_text)
+
+# pprint(tokenizer.vocab)
+# print('*******')
+# print('*******')
+# # pprint(tokenizer.merges) 
+# print('\n\n')
+# print(len(text_enc))
+# print('\n\n')
+# print(text_dec)
+# print(text_dec == test_text)
 
 tokenizer.save()
