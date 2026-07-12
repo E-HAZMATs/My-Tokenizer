@@ -11,10 +11,7 @@ encode text -> add vocab _ replace encoded text by finding toeknized merges and 
 
 '''
 GENERAL TODOS:
-TODO: Handle equality of freq occurrence? maybe no need, since the other pair will get selected next iter?
-TODO: Try on Arabic dataset. Drop taylor swift txt.
 TODO: Serialize the tokenizer?
-TODO: Export vocab and merges?
 TODO?: Apply regex supported tokenizer? (dog. dog? dog! issue in openai paper).
 '''
 from os import path
@@ -33,7 +30,6 @@ class Tokenizer:
         # so if the unkown char is [50,200] then the byte 50 here would somehow give an idea that it should concated with other byte(s) to get a char.
         self.vocab = {i: bytes([i]) for i in range(256)} # Base vocab. Should be {ID: Bytes}
         self.merges = {} # The token merges.  
-        pass
 
     # max_vocab is the stopping point. Once the we have max_vocab tokens we stop merging.
     def train(self, dataset, max_vocab):
