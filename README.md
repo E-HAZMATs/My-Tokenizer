@@ -2,6 +2,7 @@
 
 A tokenizer built using the Byte-Pair Encoding (BPE) algorithm. Can be used to train a tokenizer using text in any language. Then, using the trained tokenizer, you can tokenize an LLM training dataset.
 
+`regex-tokenizer.py`: A regex supported tokenizer that has case handling for diacritics (حركات/تشكيل). 
 ## Functionality
 
 Builds a `vocab` dict that has ID keys (the token) and a values of the what the token represent (a byte, char, subword, or word).
