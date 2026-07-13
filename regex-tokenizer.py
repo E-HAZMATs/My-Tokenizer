@@ -1,6 +1,9 @@
 import regex as re
 from os import path
 
+'''
+TODO: Add special chars?
+'''
 
 # GPT2 Regex but I added handling for tashkeel/harakat. They're under category `Mn`.
 # The regex would match each letter with a following zero or more `tashkeel`.
@@ -13,9 +16,10 @@ class RegexTokenizer:
         self.reg = re.compile(GPT2_SPLIT_PATTERN_DIACRITICS)
         self.vocab = {i: bytes([i]) for i in range(256)} # Base vocab. Should be {ID: Bytes}
         self.merges = {} # The token merges.  
+        self.special_toks = {}
+        self.special_toks_inv = {}
 
     def train(self, dataset, max_vocab):
-        chars = sorted(list(set(dataset)))
         assert max_vocab > 255, "can't have max_vocab less than length of base vocab."
         pairing_iter = max_vocab - 256
         chunks = re.findall(self.reg, dataset) # Split
