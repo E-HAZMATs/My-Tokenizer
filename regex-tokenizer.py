@@ -25,14 +25,10 @@ class RegexTokenizer:
         for i in range(pairing_iter):
             new_id = i + 256 # base is 0-255. So 1st next token in vocab is 256.
 
-            freqs = {}
-            for chunk in data_enc:
-                self._occur_freq(chunk, freqs)
+            freqs = self._occur_freq(data_enc)
 
-            freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
             # constructing a list of the keys alone.
-            freq_list = list(freqs_sorted) # There is a better way with `max` (no list construction). forgot how tho.
-            top_pair = freq_list[0]
+            top_pair = freqs[0]
             self.merges[top_pair] = new_id # Connects this dict with `vocab`. Value could [new_id, new byte(s)] instead?
             data_enc = [self.merge(chunk, new_id, top_pair) for chunk in data_enc]
             self.vocab[new_id] = self.vocab[top_pair[0]] + self.vocab[top_pair[1]]
@@ -41,14 +37,15 @@ class RegexTokenizer:
             for k, v in self.vocab.items():
                 f.write(f'{k}: {v.decode("utf-8", errors="replace")}\n')
 
-
-    def _occur_freq(self, data, freqs):
-
-        # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
-        for pair in zip(data, data[1:]):
-            # If key exists, return its value after adding 1, else return 0(fallback) + 1.
-            freqs[pair] = freqs.get(pair, 0) + 1
-
+    def _occur_freq(self, data):
+        freqs = dict()
+        for chunk in data:
+            # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
+            for pair in zip(chunk, chunk[1:]):
+                # If key exists, return its value after adding 1, else return 0(fallback) + 1.
+                freqs[pair] = freqs.get(pair, 0) + 1
+        freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
+        return list(freqs_sorted)
     # "Edits" the training data to use new token, update `merges` dict.
     def merge(self, data_enc, new_id, pair, encoding=False):
         data_updated = []
@@ -64,6 +61,27 @@ class RegexTokenizer:
         return data_updated
     
 
+    def encode(self, text):
+        chunks = re.findall(self.reg, text)
+        chunks_enc = [list(chunk.encode('utf-8')) for chunk in chunks]
+        # In case text is just 1 char, no merging needed.
+        while len(text) > 1:
+            
+            freqs = self._occur_freq(chunks_enc)
+            '''
+            iterates over `freqs` keys > if the key is in `merges` we get that value, else we get infinity > we compare the values and find min in which it's the first merge for the given pair.
+            `inf` = not in `merges`.
+            '''
+            pair = min(freqs, key= lambda pair: self.merges.get(pair, float('inf')))
+
+            # Should be true only after getting the final merge done in training.
+            if pair not in self.merges:
+                break 
+            new_token = self.merges[pair]
+            for i in range(len(chunks_enc)):
+                chunks_enc[i] = self.merge(chunks_enc[i], new_token, pair, encoding=True)
+        return chunks_enc # XXX: Should chunks be flattened?
+
 
     # -------
 # CONFIGS / ARGS
@@ -71,9 +89,9 @@ max_vocab = 500
 data_path = 'data'
 data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
 
-test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
+# test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
 
-# test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
+test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
 # -------
 
 
@@ -85,6 +103,7 @@ tokenizer = RegexTokenizer()
 
 tokenizer.train(data, max_vocab)
 
-# text_enc = tokenizer.encode(test_text)
+text_enc = tokenizer.encode(test_text)
+print(text_enc)
 # text_dec = tokenizer.decode(text_enc)
 # tokenizer.save()

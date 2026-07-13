@@ -54,7 +54,6 @@ class Tokenizer:
         assert True # Add assertion that checks if tokenizer is trained? if not trained it will just return utf8 no?
         text_enc = text.encode('utf-8')
         # In case text is just 1 char, no merging needed.
-        i = 0
         while len(text_enc) > 1:
 
             freqs = self._occur_freq(text_enc)
@@ -67,9 +66,6 @@ class Tokenizer:
             # Should be true only after getting the final merge done in training.
             if pair not in self.merges:
                 break 
-            i += 1
-            if i == 40:
-                break
             new_token = self.merges[pair]
             text_enc = self.merge(text_enc, new_token, pair, encoding=True)
         return text_enc
