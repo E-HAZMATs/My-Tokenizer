@@ -34,7 +34,6 @@ class Tokenizer:
     # max_vocab is the stopping point. Once the we have max_vocab tokens we stop merging.
     def train(self, dataset, max_vocab):
         # WORKFLOW: ENCODED DATA > FIND POPULAR PAIR > ADD NEW TOKEN > UPDATE DATASET, REPLACING PAIRS WITH NEW TOKEN > REPEAT TILL STOP POINT. 
-        chars = sorted(list(set(dataset)))
         assert max_vocab > 255, "can't have max_vocab less than length of base vocab."
         pairing_iter = max_vocab - 256 # could be 0... I guess that's fine
         data_enc = dataset.encode('utf-8')
@@ -81,8 +80,6 @@ class Tokenizer:
         decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
         return decoded
 
-    # Recieves the byte representation of the text, returns the most occurrent pair?
-    # CHECK: what if equality?    
     def _occur_freq(self, data):
         freqs = dict()
 
