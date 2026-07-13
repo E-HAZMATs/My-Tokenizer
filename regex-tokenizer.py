@@ -80,8 +80,13 @@ class RegexTokenizer:
             new_token = self.merges[pair]
             for i in range(len(chunks_enc)):
                 chunks_enc[i] = self.merge(chunks_enc[i], new_token, pair, encoding=True)
-        return chunks_enc # XXX: Should chunks be flattened?
-
+        # Flatten the list of chunks
+        flat_enc = [el for list in chunks_enc for el in list]
+        return flat_enc # XXX: Should chunks be flattened?
+    
+    def decode(self, tok_seq):
+        decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
+        return decoded 
 
     # -------
 # CONFIGS / ARGS
@@ -105,5 +110,9 @@ tokenizer.train(data, max_vocab)
 
 text_enc = tokenizer.encode(test_text)
 print(text_enc)
+text_dec = tokenizer.decode(text_enc)
+print(test_text == text_dec)
+
+print(text_dec)
 # text_dec = tokenizer.decode(text_enc)
 # tokenizer.save()
