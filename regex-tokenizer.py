@@ -29,6 +29,7 @@ class RegexTokenizer:
         for i in range(pairing_iter):
             new_id = i + 256 # base is 0-255. So 1st next token in vocab is 256.
 
+            # FIXME: CHANGED `occur_freq` to get a chunk. This could break REVIEW!!!!!
             freqs = self._occur_freq(data_enc)
 
             # constructing a list of the keys alone.
@@ -50,6 +51,16 @@ class RegexTokenizer:
                 freqs[pair] = freqs.get(pair, 0) + 1
         freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
         return list(freqs_sorted)
+    
+    def _occur_freq(self, data):
+        freqs = dict()
+            # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
+        for pair in zip(data, data[1:]):
+            # If key exists, return its value after adding 1, else return 0(fallback) + 1.
+            freqs[pair] = freqs.get(pair, 0) + 1
+        freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
+        return list(freqs_sorted)
+
     # "Edits" the training data to use new token, update `merges` dict.
     def merge(self, data_enc, new_id, pair, encoding=False):
         data_updated = []
@@ -64,13 +75,25 @@ class RegexTokenizer:
 
         return data_updated
     
+    def encode_chunk(self, byte_chunk):
+        while len(byte_chunk) > 1:
+            freqs = self._occur_freq(byte_chunk)
+            pair = min(freqs, key= lambda pair: self.merges.get(pair, float('inf')))
+
+            if pair not in self.merges:
+                break
+            new_token = self.merges[pair]
+            new = self.merge()
 
     def encode(self, text):
         chunks = re.findall(self.reg, text)
         chunks_enc = [list(chunk.encode('utf-8')) for chunk in chunks]
+        enc = []
+        for chunk in chunks_enc:
+            enc.extend(self.encode_chunk(chunk))
+        
         # In case text is just 1 char, no merging needed.
-        while len(text) > 1:
-            
+        while len(text) > 1: # FIXME: passing single arabic letter return byte rep instead of created token for that letter!
             freqs = self._occur_freq(chunks_enc)
             '''
             iterates over `freqs` keys > if the key is in `merges` we get that value, else we get infinity > we compare the values and find min in which it's the first merge for the given pair.
@@ -86,11 +109,36 @@ class RegexTokenizer:
                 chunks_enc[i] = self.merge(chunks_enc[i], new_token, pair, encoding=True)
         # Flatten the list of chunks
         flat_enc = [el for list in chunks_enc for el in list]
+
         return flat_enc # XXX: Should chunks be flattened?
     
     def decode(self, tok_seq):
         decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
         return decoded 
+
+    def add_special_toks(self, special):
+        assert isinstance(special, dict) 
+        assert all(isinstance(k, str) and isinstance(v, int) for k, v in special.items())
+        self.special_toks = special
+        self.special_toks_inv = {v: k for k, v in special.items()}
+    
+    def encode_spec(self, text):
+
+        # str for a regex. we escape each special char in the special toks.
+        # So '|' become "/|". This way, regex doesn't count it as "or".
+        # parenthesis on each end makes the findall return the matched pattern with the list 
+        special_pattern = '(' + '|'.join(re.escape(k) for k in self.special_toks) + ')'
+        # splitting text when hitting a special char.
+        # "Hello<|endoftext|>there" becomes ['hello', '<|endoftext|>', 'there]
+        special_chunks = re.split(special_pattern, text)
+
+        toks = []
+        for chunk in special_chunks:
+            if chunk in self.special_toks:
+                toks.append(self.special_toks[chunk])
+            else:
+                toks.extend(self.encode(chunk))
+
 
     # -------
 # CONFIGS / ARGS
@@ -111,12 +159,11 @@ with open(path.join(data_path, data_set[0]), encoding='utf-8') as f:
 tokenizer = RegexTokenizer()
 
 tokenizer.train(data, max_vocab)
-
-text_enc = tokenizer.encode(test_text)
+h = 'م'
+print(len(h))
+text_enc = tokenizer.encode(h)
 print(text_enc)
-text_dec = tokenizer.decode(text_enc)
-print(test_text == text_dec)
-
-print(text_dec)
 # text_dec = tokenizer.decode(text_enc)
-# tokenizer.save()
+# print(test_text == text_dec)
+
+# print(text_dec)
