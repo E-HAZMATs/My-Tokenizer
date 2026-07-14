@@ -44,9 +44,9 @@ class RegexTokenizer:
             data_enc = [self.merge(chunk, new_id, top_pair) for chunk in data_enc]
             self.vocab[new_id] = self.vocab[top_pair[0]] + self.vocab[top_pair[1]]
 
-        with open('reg_vocab.txt', 'w', encoding='utf-8') as f:
-            for k, v in self.vocab.items():
-                f.write(f'{k}: {v.decode("utf-8", errors="replace")}\n')
+        # with open('reg_vocab.txt', 'w', encoding='utf-8') as f:
+        #     for k, v in self.vocab.items():
+        #         f.write(f'{k}: {v.decode("utf-8", errors="replace")}\n')
     
     def _occur_freq(self, data, freqs=None):
         freqs = dict() if freqs is None else freqs
@@ -141,21 +141,23 @@ class RegexTokenizer:
         merge_path= 'checkpoints/reg_merges.json'
 
         if not path.exists(merge_path):
+            # TODO: Should throw?
             print(f'merge json does not exist at {merge_path}')
+            return
         
-        with open(path, 'r') as f:
+        with open(merge_path, 'r') as f:
             raw = json.load(f)
         self.merges = {ast.literal_eval(k): v for k, v in raw.items()}
         # FIXME: This could crash? if a nested merge is hit before it's child merge, the assignment will fail?
         # The json is ordered so....?
         for pair, new_tok  in self.merges.items():
-            self.vocab[new_tok] = self.vocab[pair[0]] + self.vocab[pair[0]]
+            self.vocab[new_tok] = self.vocab[pair[0]] + self.vocab[pair[1]]
     # -------
 # CONFIGS / ARGS
-max_vocab = 350
+max_vocab = 600
 data_path = 'data'
 data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
-
+use_load = True
 # test_text = '''For dicts to be ordered, you need Python 3.7+, or 3.6+ if you're okay with relying on the technically-an-implementation-detail ordered nature of dicts on CPython 3.6.'''
 
 test_text = '''توقَّف التقدم الألماني في فرنسا في معركة المارن، وبحلول نهاية عام 1914 استقرت الجبهة الغربية على حرب استنزاف تميزت بسلسلة طويلة من خطوط الخنادق التي قليلاً ما تغيَّرت حتى عام 1917. على الجبهة الشرقية دخل جيشان روسيان شرق بروسيا في 17 أغسطس بناءً للاتفاق مع فرنسا عام 1912 بمهاجمة ألمانيا خلال 15 يومًا من التعبئة. أجبر الألمان على تحويل قوات من الغرب، لكنهم نجحوا في صدِّ هذا الغزو بانتصارٍ في معركة تاننبرغ ومعركة بحيرات ماسوريان الأولى، ومع ذلك احتل الروس مقاطعة غاليسيا الشرقية في النمسا-المجر.'''
@@ -168,11 +170,15 @@ with open(path.join(data_path, data_set[1]), encoding='utf-8') as f:
 
 tokenizer = RegexTokenizer()
 
-tokenizer.train(data, max_vocab)
+if use_load:
+    tokenizer.load()
+else:
+    tokenizer.train(data, max_vocab)
 tokenizer.add_special_toks({"<|endoftext|>": max_vocab})
 h = '<|endoftext|>Hello there.<|endoftext|>I love tuna.<|endoftext|>'
 # h = 'م'
 # text_enc = tokenizer.encode(h)
+tokenizer.save()
 text_enc = tokenizer.encode_spec(h)
 print(text_enc)
 text_dec = tokenizer.decode(text_enc)
