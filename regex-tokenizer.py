@@ -30,8 +30,13 @@ class RegexTokenizer:
             new_id = i + 256 # base is 0-255. So 1st next token in vocab is 256.
 
             # FIXME: CHANGED `occur_freq` to get a chunk. This could break REVIEW!!!!!
-            freqs = self._occur_freq(data_enc)
-
+            freqs = dict()
+            for chunk in data_enc:
+                freqs = self._occur_freq(chunk, freqs)
+            
+            # sort dict then construct a list of it to get more frequent pair.
+            # outsourced from `_occur_freq` since the method is used more broadly now.
+            freqs = list(dict(sorted(freqs.items(), key= lambda item: -item[1])))
             # constructing a list of the keys alone.
             top_pair = freqs[0]
             self.merges[top_pair] = new_id # Connects this dict with `vocab`. Value could [new_id, new byte(s)] instead?
@@ -41,28 +46,18 @@ class RegexTokenizer:
         with open('reg_vocab.txt', 'w', encoding='utf-8') as f:
             for k, v in self.vocab.items():
                 f.write(f'{k}: {v.decode("utf-8", errors="replace")}\n')
-
-    def _occur_freq(self, data):
-        freqs = dict()
-        for chunk in data:
-            # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
-            for pair in zip(chunk, chunk[1:]):
-                # If key exists, return its value after adding 1, else return 0(fallback) + 1.
-                freqs[pair] = freqs.get(pair, 0) + 1
-        freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
-        return list(freqs_sorted)
     
-    def _occur_freq(self, data):
-        freqs = dict()
-            # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
+    def _occur_freq(self, data, freqs=None):
+        freqs = dict() if freqs is None else freqs
+        # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
         for pair in zip(data, data[1:]):
             # If key exists, return its value after adding 1, else return 0(fallback) + 1.
             freqs[pair] = freqs.get(pair, 0) + 1
-        freqs_sorted = dict(sorted(freqs.items(), key= lambda item: -item[1]))
-        return list(freqs_sorted)
+        return freqs
+        # return list(freqs_sorted)
 
     # "Edits" the training data to use new token, update `merges` dict.
-    def merge(self, data_enc, new_id, pair, encoding=False):
+    def merge(self, data_enc, new_id, pair, encoding=False): # XXX: `encoding` is useless here. I outsourced merging so... delete it?
         data_updated = []
         i = 0
         while i < len(data_enc):
@@ -75,15 +70,15 @@ class RegexTokenizer:
 
         return data_updated
     
-    def encode_chunk(self, byte_chunk):
-        while len(byte_chunk) > 1:
-            freqs = self._occur_freq(byte_chunk)
+    def encode_chunk(self, chunk):
+        while len(chunk) > 1:
+            freqs = self._occur_freq(chunk)
             pair = min(freqs, key= lambda pair: self.merges.get(pair, float('inf')))
-
             if pair not in self.merges:
                 break
             new_token = self.merges[pair]
-            new = self.merge()
+            chunk = self.merge(chunk, new_token, pair)
+        return chunk
 
     def encode(self, text):
         chunks = re.findall(self.reg, text)
@@ -92,25 +87,8 @@ class RegexTokenizer:
         for chunk in chunks_enc:
             enc.extend(self.encode_chunk(chunk))
         
-        # In case text is just 1 char, no merging needed.
-        while len(text) > 1: # FIXME: passing single arabic letter return byte rep instead of created token for that letter!
-            freqs = self._occur_freq(chunks_enc)
-            '''
-            iterates over `freqs` keys > if the key is in `merges` we get that value, else we get infinity > we compare the values and find min in which it's the first merge for the given pair.
-            `inf` = not in `merges`.
-            '''
-            pair = min(freqs, key= lambda pair: self.merges.get(pair, float('inf')))
+        return enc
 
-            # Should be true only after getting the final merge done in training.
-            if pair not in self.merges:
-                break 
-            new_token = self.merges[pair]
-            for i in range(len(chunks_enc)):
-                chunks_enc[i] = self.merge(chunks_enc[i], new_token, pair, encoding=True)
-        # Flatten the list of chunks
-        flat_enc = [el for list in chunks_enc for el in list]
-
-        return flat_enc # XXX: Should chunks be flattened?
     
     def decode(self, tok_seq):
         decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
@@ -138,11 +116,13 @@ class RegexTokenizer:
                 toks.append(self.special_toks[chunk])
             else:
                 toks.extend(self.encode(chunk))
+        
+        return toks
 
 
     # -------
 # CONFIGS / ARGS
-max_vocab = 500
+max_vocab = 400
 data_path = 'data'
 data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
 
@@ -153,15 +133,17 @@ test_text = '''توقَّف التقدم الألماني في فرنسا في �
 
 
 
-with open(path.join(data_path, data_set[0]), encoding='utf-8') as f:
+with open(path.join(data_path, data_set[1]), encoding='utf-8') as f:
     data = f.read()
 
 tokenizer = RegexTokenizer()
 
 tokenizer.train(data, max_vocab)
-h = 'م'
-print(len(h))
-text_enc = tokenizer.encode(h)
+tokenizer.add_special_toks({"<|endoftext|>": max_vocab})
+h = 'Hello there.<|endoftext|>I love tuna.'
+# h = 'م'
+# text_enc = tokenizer.encode(h)
+text_enc = tokenizer.encode_spec(h)
 print(text_enc)
 # text_dec = tokenizer.decode(text_enc)
 # print(test_text == text_dec)
