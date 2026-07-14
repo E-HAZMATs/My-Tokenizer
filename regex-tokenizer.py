@@ -1,5 +1,6 @@
 import regex as re
 from os import path
+import json, ast
 
 '''
 '''
@@ -86,8 +87,8 @@ class RegexTokenizer:
             enc.extend(self.encode_chunk(chunk))
         
         return enc
-
-
+    
+    # TODO: Could improve this by storing indecises of spec chars of last encoding attempt
     def decode(self, tok_seq):
         byte_seq = []
         for i in tok_seq:
@@ -124,7 +125,31 @@ class RegexTokenizer:
         
         return toks
 
+    def save(self):
+        # BPE works on byte rep of the text, so it could pair 2 bytes that correspond to nothing in UTF-8 and can't be decoded.
+        # Use errors=replace stops it from throwing and replaces rubbish byte pairs with some symbol.
+        voc = {k: v.decode('utf-8', errors='replace') for k, v in self.vocab.items()}
+        with open('checkpoints/reg_vocab.json', 'w') as f:
+            json.dump(voc, f, indent=4) # bytes 128-255 don't have decodable values in utf-8. File can't be used for loading.
 
+        mers = {str(pair): token for pair, token in self.merges.items()}
+        print({type(v) for v in mers.keys()})
+        with open('checkpoints/reg_merges.json', 'w') as f:
+            json.dump(mers, f, indent=4)
+
+    def load(self):
+        merge_path= 'checkpoints/reg_merges.json'
+
+        if not path.exists(merge_path):
+            print(f'merge json does not exist at {merge_path}')
+        
+        with open(path, 'r') as f:
+            raw = json.load(f)
+        self.merges = {ast.literal_eval(k): v for k, v in raw.items()}
+        # FIXME: This could crash? if a nested merge is hit before it's child merge, the assignment will fail?
+        # The json is ordered so....?
+        for pair, new_tok  in self.merges.items():
+            self.vocab[new_tok] = self.vocab[pair[0]] + self.vocab[pair[0]]
     # -------
 # CONFIGS / ARGS
 max_vocab = 350
