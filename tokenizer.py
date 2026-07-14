@@ -12,7 +12,6 @@ encode text -> add vocab _ replace encoded text by finding toeknized merges and 
 '''
 GENERAL TODOS:
 TODO: Serialize the tokenizer?
-TODO?: Apply regex supported tokenizer? (dog. dog? dog! issue in openai paper).
 '''
 from os import path
 from pprint import pprint

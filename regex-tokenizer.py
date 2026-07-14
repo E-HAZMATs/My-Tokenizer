@@ -2,7 +2,6 @@ import regex as re
 from os import path
 
 '''
-TODO: Add special chars?
 '''
 
 # GPT2 Regex but I added handling for tashkeel/harakat. They're under category `Mn`.
@@ -18,6 +17,7 @@ class RegexTokenizer:
         self.merges = {} # The token merges.  
         self.special_toks = {}
         self.special_toks_inv = {}
+
 
     def train(self, dataset, max_vocab):
         assert max_vocab > 255, "can't have max_vocab less than length of base vocab."
@@ -51,10 +51,8 @@ class RegexTokenizer:
         freqs = dict() if freqs is None else freqs
         # When data reaches last el, `zip` wouldn't produce a pair cus `data[1:]` is out of bound.
         for pair in zip(data, data[1:]):
-            # If key exists, return its value after adding 1, else return 0(fallback) + 1.
             freqs[pair] = freqs.get(pair, 0) + 1
         return freqs
-        # return list(freqs_sorted)
 
     # "Edits" the training data to use new token, update `merges` dict.
     def merge(self, data_enc, new_id, pair, encoding=False): # XXX: `encoding` is useless here. I outsourced merging so... delete it?
@@ -89,19 +87,26 @@ class RegexTokenizer:
         
         return enc
 
-    
-    def decode(self, tok_seq):
-        decoded = b''.join([self.vocab[tok] for tok in tok_seq]).decode('utf-8')
-        return decoded 
 
+    def decode(self, tok_seq):
+        byte_seq = []
+        for i in tok_seq:
+            if i in self.vocab:
+                byte_seq.append(self.vocab[i])
+            else:
+                byte_seq.append(self.special_toks_inv[i].encode('utf-8'))
+        decoded = b''.join(byte_seq).decode('utf-8')
+        return decoded
+    
     def add_special_toks(self, special):
         assert isinstance(special, dict) 
         assert all(isinstance(k, str) and isinstance(v, int) for k, v in special.items())
         self.special_toks = special
         self.special_toks_inv = {v: k for k, v in special.items()}
     
+    # Encode with handling for special chars (e.g. "<|endoftext|>")
     def encode_spec(self, text):
-
+        
         # str for a regex. we escape each special char in the special toks.
         # So '|' become "/|". This way, regex doesn't count it as "or".
         # parenthesis on each end makes the findall return the matched pattern with the list 
@@ -122,7 +127,7 @@ class RegexTokenizer:
 
     # -------
 # CONFIGS / ARGS
-max_vocab = 400
+max_vocab = 350
 data_path = 'data'
 data_set = ['ww1-wiki-ar.txt', 'taylorswift.txt']
 
@@ -140,12 +145,12 @@ tokenizer = RegexTokenizer()
 
 tokenizer.train(data, max_vocab)
 tokenizer.add_special_toks({"<|endoftext|>": max_vocab})
-h = 'Hello there.<|endoftext|>I love tuna.'
+h = '<|endoftext|>Hello there.<|endoftext|>I love tuna.<|endoftext|>'
 # h = 'م'
 # text_enc = tokenizer.encode(h)
 text_enc = tokenizer.encode_spec(h)
 print(text_enc)
-# text_dec = tokenizer.decode(text_enc)
-# print(test_text == text_dec)
+text_dec = tokenizer.decode(text_enc)
+print(h == text_dec)
 
 # print(text_dec)
